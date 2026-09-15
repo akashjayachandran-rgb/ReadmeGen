@@ -9,6 +9,7 @@ from app.github_reader import (
     parse_github_url,
 )
 from app.models.request import RepositoryRequest
+from app.repo_analyzer import analyze_repository
 
 
 app = FastAPI(
@@ -50,8 +51,13 @@ def generate_readme(request: RepositoryRequest):
             repository_root
         )
 
+        repository_facts = analyze_repository(
+            repository_info,
+            selected_files,
+        )
+
         return {
-            "message": "Repository scanned safely",
+            "message": "Repository analyzed successfully",
             "repository": repository_info,
             "selected_file_count": len(
                 selected_files
@@ -60,6 +66,7 @@ def generate_readme(request: RepositoryRequest):
                 selected_file["path"]
                 for selected_file in selected_files
             ],
+            "repository_facts": repository_facts,
             "temporary_files_deleted": True,
         }
 
