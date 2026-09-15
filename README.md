@@ -1,6 +1,6 @@
-# Project Anker
+# ReadmeGen
 
-Project Anker accepts an authorized GitHub repository URL, safely downloads
+ReadmeGen accepts an authorized GitHub repository URL, safely downloads
 the default branch, filters unsafe files and extracts structured repository
 facts for README generation.
 
@@ -11,8 +11,8 @@ The local authentication flow supports:
 - private repositories shared with the user; and
 - repositories belonging to a GitHub Organization.
 
-The signed-in user and the Project Anker GitHub App must both be allowed to
-access a repository. Project Anker requests read-only metadata and contents
+The signed-in user and the ReadmeGen GitHub App must both be allowed to
+access a repository. ReadmeGen requests read-only metadata and contents
 permissions and never pushes changes to GitHub.
 
 ## 1 Create the GitHub App
@@ -21,7 +21,7 @@ Open GitHub **Settings > Developer settings > GitHub Apps > New GitHub App**.
 Use these local-development values:
 
 ```text
-GitHub App name: Project Anker Local <your-name>
+GitHub App name: ReadmeGen Local <your-name>
 Homepage URL: http://localhost:8000/docs
 Callback URL: http://localhost:8000/auth/github/callback
 Webhook: Inactive

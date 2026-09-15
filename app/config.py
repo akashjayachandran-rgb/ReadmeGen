@@ -16,8 +16,8 @@ GITHUB_CALLBACK_URL = os.getenv(
     "http://localhost:8000/auth/github/callback",
 )
 
-SESSION_COOKIE_NAME = "project_anker_session"
-OAUTH_STATE_COOKIE_NAME = "project_anker_oauth_state"
+SESSION_COOKIE_NAME = "ReadmeGen_session"
+OAUTH_STATE_COOKIE_NAME = "ReadmeGen_oauth_state"
 OAUTH_STATE_TTL_SECONDS = 10 * 60
 SESSION_TTL_SECONDS = 8 * 60 * 60
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"

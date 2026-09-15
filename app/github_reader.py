@@ -48,7 +48,7 @@ def parse_github_url(github_url: str):
 def _github_headers(access_token: str | None = None):
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "Project-Anker",
+        "User-Agent": "ReadmeGen",
         "X-GitHub-Api-Version": "2022-11-28",
     }
 
@@ -160,7 +160,7 @@ def download_repository(
     access_token: str | None = None,
 ):
     temporary_directory = Path(
-        tempfile.mkdtemp(prefix="project_anker_")
+        tempfile.mkdtemp(prefix="ReadmeGen_")
     )
 
     zip_path = temporary_directory / "repository.zip"

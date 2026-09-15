@@ -38,7 +38,7 @@ from app.session_store import (
 
 
 app = FastAPI(
-    title="Project Anker",
+    title="ReadmeGen",
     description=(
         "Generate README files from authorized public and private GitHub "
         "repositories"

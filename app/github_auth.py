@@ -75,7 +75,7 @@ def _authorized_headers(access_token: str) -> dict[str, str]:
     return {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {access_token}",
-        "User-Agent": "Project-Anker",
+        "User-Agent": "ReadmeGen",
         "X-GitHub-Api-Version": "2022-11-28",
     }
 
