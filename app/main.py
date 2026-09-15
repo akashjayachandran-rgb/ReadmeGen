@@ -2,6 +2,7 @@ import shutil
 
 from fastapi import FastAPI, HTTPException
 
+from app.file_filter import scan_repository
 from app.github_reader import (
     download_repository,
     get_repository_info,
@@ -12,7 +13,9 @@ from app.models.request import RepositoryRequest
 
 app = FastAPI(
     title="Project Anker",
-    description="Generate README files from public GitHub repositories",
+    description=(
+        "Generate README files from public GitHub repositories"
+    ),
 )
 
 
@@ -43,16 +46,20 @@ def generate_readme(request: RepositoryRequest):
             )
         )
 
-        file_count = sum(
-            1
-            for path in repository_root.rglob("*")
-            if path.is_file()
+        selected_files = scan_repository(
+            repository_root
         )
 
         return {
-            "message": "Repository downloaded and extracted",
+            "message": "Repository scanned safely",
             "repository": repository_info,
-            "file_count": file_count,
+            "selected_file_count": len(
+                selected_files
+            ),
+            "selected_files": [
+                selected_file["path"]
+                for selected_file in selected_files
+            ],
             "temporary_files_deleted": True,
         }
 
