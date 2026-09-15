@@ -1,4 +1,26 @@
+import os
+
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+
 GITHUB_API_URL = "https://api.github.com"
+GITHUB_WEB_URL = "https://github.com"
+
+GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
+GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
+GITHUB_CALLBACK_URL = os.getenv(
+    "GITHUB_CALLBACK_URL",
+    "http://localhost:8000/auth/github/callback",
+)
+
+SESSION_COOKIE_NAME = "project_anker_session"
+OAUTH_STATE_COOKIE_NAME = "project_anker_oauth_state"
+OAUTH_STATE_TTL_SECONDS = 10 * 60
+SESSION_TTL_SECONDS = 8 * 60 * 60
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 
 REQUEST_TIMEOUT = 10
 

@@ -45,18 +45,30 @@ def parse_github_url(github_url: str):
     return owner, repository
 
 
-def get_repository_info(owner: str, repository: str):
-    api_url = f"{GITHUB_API_URL}/repos/{owner}/{repository}"
-
+def _github_headers(access_token: str | None = None):
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "Project-Anker",
+        "X-GitHub-Api-Version": "2022-11-28",
     }
+
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
+
+    return headers
+
+
+def get_repository_info(
+    owner: str,
+    repository: str,
+    access_token: str | None = None,
+):
+    api_url = f"{GITHUB_API_URL}/repos/{owner}/{repository}"
 
     try:
         response = requests.get(
             api_url,
-            headers=headers,
+            headers=_github_headers(access_token),
             timeout=REQUEST_TIMEOUT,
         )
     except requests.Timeout as error:
@@ -66,8 +78,11 @@ def get_repository_info(owner: str, repository: str):
 
     if response.status_code == 404:
         raise ValueError(
-            "Repository not found or repository is private"
+            "Repository not found or access is not authorized"
         )
+
+    if response.status_code == 401:
+        raise ValueError("GitHub login is invalid or expired")
 
     if response.status_code == 403:
         raise ValueError(
@@ -81,15 +96,13 @@ def get_repository_info(owner: str, repository: str):
 
     repository_data = response.json()
 
-    if repository_data.get("private"):
-        raise ValueError("Private repositories are not supported")
-
     return {
         "owner": repository_data["owner"]["login"],
         "repository": repository_data["name"],
         "default_branch": repository_data["default_branch"],
         "description": repository_data.get("description"),
         "language": repository_data.get("language"),
+        "private": repository_data.get("private", False),
     }
 
 
@@ -144,6 +157,7 @@ def download_repository(
     owner: str,
     repository: str,
     default_branch: str,
+    access_token: str | None = None,
 ):
     temporary_directory = Path(
         tempfile.mkdtemp(prefix="project_anker_")
@@ -159,18 +173,21 @@ def download_repository(
         f"/zipball/{encoded_branch}"
     )
 
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "User-Agent": "Project-Anker",
-    }
-
     try:
         with requests.get(
             download_url,
-            headers=headers,
+            headers=_github_headers(access_token),
             stream=True,
             timeout=(10, 30),
         ) as response:
+            if response.status_code == 401:
+                raise ValueError("GitHub login is invalid or expired")
+
+            if response.status_code in (403, 404):
+                raise ValueError(
+                    "Repository download is not authorized"
+                )
+
             if response.status_code != 200:
                 raise ValueError(
                     "Failed to download the repository"
