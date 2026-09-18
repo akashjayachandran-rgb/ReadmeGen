@@ -234,6 +234,35 @@ SCOPE AND LENGTH
 14. Describe the repository neutrally. Do not adopt an existing author's
     first-person statements such as "my first project" as your own.
 
+PRACTICAL USEFULNESS
+
+15. Prioritize helping a reader install, use, and test the project.
+    When supported, organize the README as:
+    Overview, Requirements, Installation, Usage, Testing,
+    Configuration, Project Structure, and License.
+    Omit sections that do not apply.
+
+16. Actively inspect supplied manifests, entry points, scripts,
+    test configuration, and workflows for practical instructions.
+    Do not stop at listing dependencies or metadata when the
+    evidence supports installation, usage, or test commands.
+
+17. Commands may be directly supported by configuration even when
+    they are not written verbatim in existing documentation.
+    Include them only when their prerequisites and targets are
+    established by the supplied evidence.
+    Distinguish commands for an installed package from commands
+    run inside a repository checkout.
+
+18. Explain what implemented entry points do and how to invoke
+    them when supported. A statement such as "executes main"
+    alone is not a useful usage example.
+
+19. Keep metadata concise. Avoid lengthy author, maintainer,
+    keyword, funding, and URL lists unless they materially help
+    the reader. Describe important files by their actual purpose,
+    not just their file type.
+
 OUTPUT FORMAT
 
 - Return only the README Markdown.
