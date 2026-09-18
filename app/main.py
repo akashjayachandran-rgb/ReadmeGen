@@ -43,6 +43,9 @@ from app.session_store import (
 
 
 MAX_BEDROCK_SOURCE_CHARACTERS = 300_000
+GITHUB_APP_INSTALL_URL = (
+    "https://github.com/apps/readmegen-ank-dev/installations/new"
+)
 
 
 app = FastAPI(
@@ -299,6 +302,30 @@ HTML_PAGE = r"""
       from its code. Review the result before publishing.
     </p>
 
+    <section class="card" aria-labelledby="setupHeading">
+      <h2 id="setupHeading">Connect your repository</h2>
+      <ol class="hint">
+        <li>Install the GitHub App on the account or organisation that owns
+          your repository, and select the repositories it may read.</li>
+        <li>Return to this tab and use Login with GitHub above.</li>
+        <li>Enter an authorised repository URL below and generate your README.</li>
+      </ol>
+      <p class="hint">
+        Already installed? Use the same link to review repository access.
+        An organisation owner may need to approve installation.
+      </p>
+      <p>
+        <a class="button primary" href="/github/install"
+           target="_blank" rel="noopener noreferrer">
+          Install GitHub App
+        </a>
+      </p>
+      <p class="hint">
+        Opens GitHub in a new tab. No download is needed on your computer.
+        GitHub login identifies you; installation grants the app repository access.
+      </p>
+    </section>
+
     <section class="card">
       <form id="generateForm">
         <label for="repositoryUrl">GitHub repository URL</label>
@@ -448,7 +475,7 @@ HTML_PAGE = r"""
 
         if (response.status === 401) {
           setAccount();
-          showStatus("Log in with GitHub to generate a README.");
+          showStatus("Install the GitHub App if needed, then log in with GitHub to generate a README.");
           return;
         }
 
@@ -634,6 +661,12 @@ HTML_PAGE = r"""
 def home():
     """Serve the ReadmeGen interface."""
     return HTMLResponse(content=HTML_PAGE)
+
+
+@app.get("/github/install", include_in_schema=False)
+def install_github_app():
+    """Open the fixed GitHub App installation page."""
+    return RedirectResponse(url=GITHUB_APP_INSTALL_URL, status_code=302)
 
 
 @app.get("/health")
@@ -825,11 +858,45 @@ PRACTICAL USEFULNESS
     the reader. Describe important files by their actual purpose,
     not just their file type.
 
+ADDITIONAL VALIDATION
+
+20. Do not guess a minimum Python or runtime version. Use an explicit
+    compatibility declaration in a manifest when available, and check it
+    against implementation syntax. A CI version shows a tested version,
+    not necessarily the minimum. If evidence conflicts or no minimum is
+    established, omit the version number or explain the uncertainty.
+    In particular, do not default Python projects to "Python 3.8 or later".
+
+21. Preserve spaces between commands, flags, modules, and arguments.
+    For a Python virtual environment, the valid creation syntax is
+    `python -m venv .venv`, never `python -m venv.venv`.
+    A POSIX activation command is `source .venv/bin/activate`, never
+    `source.venv/bin/activate`. These are syntax examples only; include
+    virtual-environment instructions only when applicable to the project.
+    Put PowerShell and POSIX commands in separately labelled code blocks.
+    Do not combine different shells into one copy-and-paste command block.
+
+22. Check the working directory, filename, import path, and callable
+    for startup and test commands against the supplied code. Describe
+    configuration prerequisites before commands that require them.
+    Do not claim a command was tested or a service deployed without evidence.
+
+23. Distinguish end-user instructions from developer or self-hosting setup.
+    Document GitHub login and GitHub App installation separately when
+    implemented. Use only installation URLs present in the evidence.
+    Do not suggest that users download a GitHub App onto their computer.
+    State AWS credentials or model access requirements for the server
+    operator when supported; do not imply every UI user needs AWS credentials.
+
+24. Start with one concise description. If an Overview section is useful,
+    add new information there instead of repeating the opening paragraph.
+    Do not describe helper functions or development tools as user features.
+
 OUTPUT FORMAT
 
 - Return only the README Markdown.
 - Start with a level-one project heading.
-- Do not wrap the entire README in a code fence.
+- Do not wrap the entire README in a code fence or a JSON string/object.
 - Use real line breaks, not literal backslash-n sequences.
 - Use fenced code blocks for supported commands and examples.
 - Avoid repetitive sections and promotional claims.
