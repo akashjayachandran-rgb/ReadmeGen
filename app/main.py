@@ -8,7 +8,7 @@ from fastapi import (
     Query,
     Request,
 )
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.bedrock_client import generate_text
 from app.config import (
@@ -47,36 +47,598 @@ MAX_BEDROCK_SOURCE_CHARACTERS = 300_000
 
 app = FastAPI(
     title="ReadmeGen",
-    description="""
-ReadmeGen analyses authorized public and private GitHub repositories
-and generates professional README files using Amazon Nova Pro.
-
-## GitHub authentication
-
-[Click here to log in with GitHub](/auth/github/login)
-
-After completing GitHub authorization, GitHub will redirect you
-back to this Swagger page.
-
-Then use `GET /auth/me` to confirm that you are logged in.
-""",
+    description=(
+        "ReadmeGen analyses authorized public and private GitHub "
+        "repositories and generates README files using Amazon Nova Pro. "
+        "Open / to use the interface."
+    ),
 )
 
 
-@app.get("/", include_in_schema=False)
-def home():
-    """Redirect the root URL to Swagger."""
+# This is a regular string, not an f-string.
+# HTML, CSS, and JavaScript braces do not need escaping.
+HTML_PAGE = r"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ReadmeGen</title>
 
-    return RedirectResponse(
-        url="/docs",
-        status_code=302,
-    )
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f4f6fa;
+      color: #18243b;
+      font-family: Arial, sans-serif;
+    }
+
+    button, input, textarea {
+      font: inherit;
+    }
+
+    button, .button {
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    header {
+      background: white;
+      border-bottom: 1px solid #dde3ee;
+      padding: 20px 6%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .brand span {
+      color: #5358dd;
+    }
+
+    .account {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 14px;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 0 22px;
+    }
+
+    h1 {
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      color: #627087;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #dde3ee;
+      border-radius: 14px;
+      padding: 26px;
+      margin-bottom: 24px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    input {
+      flex: 1;
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid #cbd3e1;
+      border-radius: 8px;
+    }
+
+    button, .button {
+      display: inline-block;
+      padding: 12px 18px;
+      border-radius: 8px;
+      border: 1px solid #cbd3e1;
+      background: white;
+      color: #18243b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .primary {
+      background: #5358dd;
+      color: white;
+      border-color: #5358dd;
+    }
+
+    .hint {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #627087;
+      margin-bottom: 0;
+    }
+
+    #status {
+      padding: 14px 18px;
+      border-radius: 8px;
+      background: #e9eefb;
+      margin-bottom: 24px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    #status.error {
+      background: #fff0ef;
+      color: #a52929;
+    }
+
+    #status.success {
+      background: #eaf6ed;
+      color: #246539;
+    }
+
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      font-size: 19px;
+      margin: 0;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    textarea {
+      display: block;
+      width: 100%;
+      min-height: 460px;
+      padding: 20px;
+      border: 1px solid #dde3ee;
+      border-radius: 8px;
+      background: #fafbfe;
+      color: #25324b;
+      font-family: Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      resize: vertical;
+      tab-size: 4;
+    }
+
+    :focus-visible {
+      outline: 3px solid #969af3;
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 650px) {
+      main {
+        margin-top: 26px;
+      }
+
+      .card {
+        padding: 18px;
+      }
+
+      .input-row {
+        flex-direction: column;
+      }
+
+      h1 {
+        font-size: 27px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="brand">Readme<span>Gen</span></div>
+
+    <div class="account">
+      <span id="accountStatus">Checking login…</span>
+
+      <a
+        id="loginButton"
+        class="button primary"
+        href="/auth/github/login"
+        hidden
+      >
+        Login with GitHub
+      </a>
+
+      <button id="logoutButton" type="button" hidden>
+        Log out
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <h1>A README for your repository.</h1>
+
+    <p class="subtitle">
+      Connect GitHub, enter a repository URL, and generate a README
+      from its code. Review the result before publishing.
+    </p>
+
+    <section class="card">
+      <form id="generateForm">
+        <label for="repositoryUrl">GitHub repository URL</label>
+
+        <div class="input-row">
+          <input
+            id="repositoryUrl"
+            type="url"
+            placeholder="https://github.com/owner/repository"
+            required
+            spellcheck="false"
+            aria-describedby="repositoryHint"
+          >
+
+          <button
+            id="generateButton"
+            class="primary"
+            type="submit"
+            disabled
+          >
+            Generate README
+          </button>
+        </div>
+
+        <p id="repositoryHint" class="hint">
+          Use a repository your GitHub account and app can access.
+          Generation may take a little time.
+        </p>
+      </form>
+    </section>
+
+    <div id="status" role="status" aria-live="polite">
+      Checking your GitHub session…
+    </div>
+
+    <section class="card" id="outputSection" aria-busy="false">
+      <div class="output-header">
+        <h2>README · Markdown source</h2>
+
+        <div class="actions">
+          <button id="copyButton" type="button" disabled>
+            Copy
+          </button>
+
+          <button id="downloadButton" type="button" disabled>
+            Download README.md
+          </button>
+        </div>
+      </div>
+
+      <textarea
+        id="readmeOutput"
+        aria-label="Generated README Markdown"
+        placeholder="Your generated README will appear here."
+        readonly
+      ></textarea>
+
+      <p class="hint" id="resultInfo">
+        Copy or download your result before refreshing or leaving.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const accountStatus = document.getElementById("accountStatus");
+    const loginButton = document.getElementById("loginButton");
+    const logoutButton = document.getElementById("logoutButton");
+    const generateButton = document.getElementById("generateButton");
+    const repositoryInput = document.getElementById("repositoryUrl");
+    const output = document.getElementById("readmeOutput");
+    const statusBox = document.getElementById("status");
+    const copyButton = document.getElementById("copyButton");
+    const downloadButton = document.getElementById("downloadButton");
+    const resultInfo = document.getElementById("resultInfo");
+    const outputSection = document.getElementById("outputSection");
+
+    let loggedIn = false;
+    let busy = false;
+
+    function showStatus(message, type = "") {
+      statusBox.textContent = message;
+      statusBox.className = type;
+    }
+
+    function updateControls() {
+      generateButton.disabled = !loggedIn || busy;
+      repositoryInput.disabled = busy;
+      logoutButton.disabled = busy;
+      copyButton.disabled = !output.value || busy;
+      downloadButton.disabled = !output.value || busy;
+
+      generateButton.textContent = busy
+        ? "Generating…"
+        : "Generate README";
+
+      outputSection.setAttribute("aria-busy", String(busy));
+    }
+
+    function setAccount(login = null) {
+      loggedIn = Boolean(login);
+
+      accountStatus.textContent = login
+        ? `Signed in as ${login}`
+        : "Not signed in";
+
+      loginButton.hidden = loggedIn;
+      logoutButton.hidden = !loggedIn;
+
+      updateControls();
+    }
+
+    async function readResponse(response) {
+      const text = await response.text();
+
+      if (!text) {
+        return {};
+      }
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new Error(
+          `The server returned an unexpected response (${response.status}). ` +
+          "Check the FastAPI terminal."
+        );
+      }
+    }
+
+    function errorMessage(data, status) {
+      if (typeof data.detail === "string") {
+        return data.detail;
+      }
+
+      if (Array.isArray(data.detail)) {
+        return data.detail.map(item => item.msg).join("; ");
+      }
+
+      return `Request failed (${status}). Check the FastAPI terminal.`;
+    }
+
+    async function checkLogin() {
+      try {
+        const response = await fetch("/auth/me", {
+          credentials: "same-origin",
+          cache: "no-store"
+        });
+
+        if (response.status === 401) {
+          setAccount();
+          showStatus("Log in with GitHub to generate a README.");
+          return;
+        }
+
+        const data = await readResponse(response);
+
+        if (!response.ok) {
+          throw new Error(errorMessage(data, response.status));
+        }
+
+        setAccount(data.github_login);
+        showStatus("Connected. Enter your repository URL.", "success");
+      } catch (error) {
+        setAccount();
+        showStatus(error.message, "error");
+      }
+    }
+
+    document.getElementById("generateForm").addEventListener(
+      "submit",
+      async function (event) {
+        event.preventDefault();
+
+        if (!loggedIn || busy) {
+          return;
+        }
+
+        const githubUrl = repositoryInput.value.trim();
+
+        try {
+          const parsed = new URL(githubUrl);
+
+          if (
+            parsed.protocol !== "https:" ||
+            parsed.hostname !== "github.com"
+          ) {
+            throw new Error("Invalid GitHub URL");
+          }
+        } catch {
+          showStatus(
+            "Enter an HTTPS GitHub URL, such as " +
+            "https://github.com/owner/repository.",
+            "error"
+          );
+          return;
+        }
+
+        busy = true;
+        updateControls();
+
+        // Retain any previous result if the next request fails.
+        showStatus(
+          "Generating your README. Please keep this page open."
+        );
+
+        try {
+          const response = await fetch("/generate-readme", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              github_url: githubUrl
+            })
+          });
+
+          const data = await readResponse(response);
+
+          if (response.status === 401) {
+            setAccount();
+          }
+
+          if (!response.ok) {
+            throw new Error(errorMessage(data, response.status));
+          }
+
+          if (
+            typeof data.generated_readme !== "string" ||
+            !data.generated_readme.trim()
+          ) {
+            throw new Error("The server returned an empty README.");
+          }
+
+          // Use text rather than HTML to display untrusted output safely.
+          output.value = data.generated_readme;
+
+          resultInfo.textContent =
+            `Repository: ${githubUrl} · ` +
+            `${data.selected_file_count} files selected. ` +
+            "Copy or download before refreshing.";
+
+          showStatus(
+            "README generated. Review it, then copy or download.",
+            "success"
+          );
+        } catch (error) {
+          const previousResultNote = output.value
+            ? " Your previous README is still displayed below."
+            : "";
+
+          showStatus(error.message + previousResultNote, "error");
+        } finally {
+          busy = false;
+          updateControls();
+        }
+      }
+    );
+
+    copyButton.addEventListener("click", async function () {
+      try {
+        await navigator.clipboard.writeText(output.value);
+        showStatus("README copied to clipboard.", "success");
+      } catch {
+        output.focus();
+        output.select();
+        showStatus("Press Ctrl+C to copy the selected README.");
+      }
+    });
+
+    downloadButton.addEventListener("click", function () {
+      const blob = new Blob([output.value], {
+        type: "text/markdown;charset=utf-8"
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "README.md";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showStatus("README download started.", "success");
+    });
+
+    logoutButton.addEventListener("click", async function () {
+      if (busy) {
+        return;
+      }
+
+      busy = true;
+      updateControls();
+
+      try {
+        const response = await fetch("/auth/logout", {
+          method: "POST",
+          credentials: "same-origin"
+        });
+
+        if (!response.ok && response.status !== 401) {
+          const data = await readResponse(response);
+          throw new Error(errorMessage(data, response.status));
+        }
+
+        output.value = "";
+        resultInfo.textContent = "Log in to generate another README.";
+
+        setAccount();
+        showStatus("Logged out of ReadmeGen.");
+      } catch (error) {
+        showStatus(error.message, "error");
+      } finally {
+        busy = false;
+        updateControls();
+      }
+    });
+
+    checkLogin();
+  </script>
+</body>
+</html>
+"""
+
+
+@app.get(
+    "/",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+def home():
+    """Serve the ReadmeGen interface."""
+    return HTMLResponse(content=HTML_PAGE)
 
 
 @app.get("/health")
 def health_check():
     """Check whether the API is running."""
-
     return {"status": "healthy"}
 
 
@@ -90,8 +652,8 @@ def require_session(request: Request) -> UserSession:
         raise HTTPException(
             status_code=401,
             detail=(
-                "GitHub login is required. Open "
-                "/auth/github/login in the browser."
+                "GitHub login is required. "
+                "Use the Login with GitHub button."
             ),
         )
 
@@ -326,7 +888,7 @@ def github_callback(
     state: str | None = Query(default=None),
     error: str | None = Query(default=None),
 ):
-    """Receive the OAuth result from GitHub."""
+    """Receive the OAuth result and return to the UI."""
 
     if error:
         raise HTTPException(
@@ -370,7 +932,7 @@ def github_callback(
         ) from error
 
     response = RedirectResponse(
-        url="/docs",
+        url="/",
         status_code=302,
     )
 
@@ -405,7 +967,7 @@ def authenticated_user(
 def logout(
     session: UserSession = Depends(require_session),
 ):
-    """Delete the current GitHub login session."""
+    """Delete the current ReadmeGen login session."""
 
     delete_session(session.session_id)
 
@@ -426,7 +988,9 @@ def github_installations(
     """List GitHub App installations available to the user."""
 
     try:
-        installations = list_user_installations(session.access_token)
+        installations = list_user_installations(
+            session.access_token
+        )
 
         return {"installations": installations}
 
